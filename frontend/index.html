@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Evident - Autonomous Clinical Research Assistant</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="/static/styles.css?v=2.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Left Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <svg class="brand-logo" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        <span class="brand-name">evident</span>
+      </div>
+
+      <nav class="nav-menu">
+        <button type="button" class="nav-item active" id="nav-workspace" onclick="switchTab('workspace')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          Research assistant
+        </button>
+        <button type="button" class="nav-item" id="nav-trials" onclick="switchTab('trials')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          Clinical trials
+        </button>
+        <button type="button" class="nav-item" id="nav-protocol" onclick="switchTab('protocol')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Trial Protocol
+        </button>
+      </nav>
+
+      <div class="recent-section">
+        <div class="section-label">RECENT RESEARCH</div>
+        <div class="recent-list" id="recentList">
+          <!-- Rendered dynamically from backend DB -->
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="status-indicator">
+          <span class="dot" id="serverDot"></span>
+          <span id="serverStatusText">Connecting...</span>
+        </div>
+        <div class="user-profile">
+          <div class="avatar">AC</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace Content Area -->
+    <main class="main-content">
+      <header class="top-header">
+        <div class="breadcrumb">Workspace &rsaquo; <span id="currentViewBreadcrumb">Research assistant</span></div>
+        <div class="header-actions">
+          <button type="button" class="btn-secondary" onclick="openNewResearchModal()">+ New research</button>
+        </div>
+      </header>
+
+      <div class="content-body">
+        <!-- View 1: Research Workspace -->
+        <div class="primary-column view-section" id="view-workspace">
+          <div class="research-header">
+            <div class="sub-tag">RESEARCH ASSISTANT</div>
+            <h1>A clearer path through the evidence.</h1>
+            <p>Explore clinical questions, inspect live PubMed & ClinicalTrials.gov sources.</p>
+          </div>
+
+          <div class="card search-card">
+            <div class="query-header">
+              <span class="card-label">YOUR RESEARCH QUESTION</span>
+              <span class="privacy-tag">Anonymized query mode</span>
+            </div>
+            <textarea id="queryInput" class="query-textarea" rows="2">Enter your research topic..</textarea>
+            <div class="search-actions">
+              <div class="pills">
+              </div>
+              <button type="button" class="btn-primary" id="searchBtn" onclick="submitResearchQuery()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                Research
+              </button>
+            </div>
+          </div>
+
+
+          <div class="card synthesis-card">
+            <div class="card-header-flex">
+              <h3>Evidence synthesis</h3>
+            </div>
+            <p id="synthesisText" class="synthesis-text">Results here....</p>
+          </div>
+        </div>
+
+        <!-- View 2: Clinical Trials -->
+        <div class="primary-column view-section" id="view-trials" style="display: none;">
+          <div class="research-header">
+            <div class="sub-tag">CLINICAL TRIALS EXPLORER</div>
+            <h1>Relevant Clinical Studies</h1>
+            <p>Live matches fetched from ClinicalTrials.gov API.</p>
+          </div>
+          <div class="trials-grid" id="trialsGrid">
+
+          </div>
+        </div>
+
+        <!-- View 3: Trial Protocol Results -->
+        <div class="primary-column view-section" id="view-protocol" style="display: none;">
+          <div class="research-header">
+            <div class="sub-tag">TRIAL PROTOCOL DESIGN</div>
+            <h1>Generated Study Protocol</h1>
+            <p>Formulated by Protocol Synthesis Agent & Compliance Inspector.</p>
+          </div>
+          <div class="card" id="protocolContainer">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+        <aside class="right-panel">
+          <div class="card panel-card">
+            <div class="panel-header">
+              <h3>Sources</h3>
+              <span class="count-badge">Live API</span>
+            </div>
+            <div class="sources-list" id="sourcesList">
+
+            </div>
+          </div>
+
+          <div class="card panel-card">
+            <div class="panel-header">
+              <h3>Live Agent Pipeline</h3>
+            </div>
+            <div class="events-timeline" id="eventsTimeline">
+            </div>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <script src="/static/app.js?v=2.0"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--<!DOCTYPE html>-->
+<!--<html lang="en">-->
+<!--<head>-->
+<!--  <meta charset="UTF-8" />-->
+<!--  <meta name="viewport" content="width=device-width, initial-scale=1.0" />-->
+<!--  <title>Evident - Autonomous Clinical Research Assistant</title>-->
+<!--  <link rel="stylesheet" href="static/styles.css" />-->
+<!--  <link rel="preconnect" href="https://fonts.googleapis.com">-->
+<!--  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>-->
+<!--  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">-->
+<!--</head>-->
+<!--<body>-->
+<!--  <div class="app-container">-->
+<!--    &lt;!&ndash; Dark Left Sidebar &ndash;&gt;-->
+<!--    <aside class="sidebar">-->
+<!--      <div class="brand">-->
+<!--        <svg class="brand-logo" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>-->
+<!--        <span class="brand-name">evident</span>-->
+<!--      </div>-->
+
+<!--      <nav class="nav-menu">-->
+<!--        <button class="nav-item active" onclick="switchTab('workspace')">-->
+<!--          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>-->
+<!--          Research assistant-->
+<!--        </button>-->
+<!--        <button class="nav-item" onclick="switchTab('trials')">-->
+<!--          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>-->
+<!--          Clinical trials-->
+<!--        </button>-->
+<!--        <button class="nav-item" onclick="switchTab('protocol')">-->
+<!--          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>-->
+<!--          Trial Protocol-->
+<!--        </button>-->
+<!--      </nav>-->
+
+<!--      <div class="recent-section">-->
+<!--        <div class="section-label">RECENT RESEARCH</div>-->
+<!--        <div class="recent-list" id="recentList">-->
+<!--          <div class="recent-item active">GLP-1 therapies in HFpEF</div>-->
+<!--          <div class="recent-item">SGLT2 Inhibitors & CKD</div>-->
+<!--        </div>-->
+<!--      </div>-->
+
+<!--      <div class="sidebar-footer">-->
+<!--        <div class="status-indicator">-->
+<!--          <span class="dot" id="serverDot"></span>-->
+<!--          <span id="serverStatusText">FastAPI Offline (Mocking)</span>-->
+<!--        </div>-->
+<!--        <div class="user-profile">-->
+<!--          <div class="avatar">AC</div>-->
+<!--          <div class="user-info">-->
+<!--            <span class="user-name">Dr. Alex Chen</span>-->
+<!--            <span class="user-role">Research Workspace</span>-->
+<!--          </div>-->
+<!--        </div>-->
+<!--      </div>-->
+<!--    </aside>-->
+
+<!--    &lt;!&ndash; Main Workspace Content &ndash;&gt;-->
+<!--    <main class="main-content">-->
+<!--      <header class="top-header">-->
+<!--        <div class="breadcrumb">Workspace &rsaquo; <span>Research assistant</span></div>-->
+<!--        <div class="header-actions">-->
+<!--          <button class="btn-secondary" onclick="openNewResearchModal()">+ New research</button>-->
+<!--        </div>-->
+<!--      </header>-->
+
+<!--      <div class="content-body">-->
+<!--        <div class="primary-column">-->
+<!--          <div class="research-header">-->
+<!--            <div class="sub-tag">RESEARCH ASSISTANT</div>-->
+<!--            <h1>A clearer path through the evidence.</h1>-->
+<!--            <p>Explore clinical questions, inspect live PubMed & ClinicalTrials.gov sources.</p>-->
+<!--          </div>-->
+
+<!--          &lt;!&ndash; Research Query Card &ndash;&gt;-->
+<!--          <div class="card search-card">-->
+<!--            <div class="query-header">-->
+<!--              <span class="card-label">YOUR RESEARCH QUESTION</span>-->
+<!--              <span class="privacy-tag">Anonymized query mode</span>-->
+<!--            </div>-->
+<!--            <textarea id="queryInput" class="query-textarea" rows="2">What is the evidence for semaglutide in obesity-related HFpEF, and which trials may be relevant for adults with and without type 2 diabetes?</textarea>-->
+<!--            <div class="search-actions">-->
+<!--              <div class="pills">-->
+<!--                <span class="pill">PubMed + trial registries</span>-->
+<!--                <span class="pill">Adults · RCTs first</span>-->
+<!--              </div>-->
+<!--              <button class="btn-primary" id="searchBtn" onclick="submitResearchQuery()">-->
+<!--                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>-->
+<!--                Research-->
+<!--              </button>-->
+<!--            </div>-->
+<!--          </div>-->
+
+<!--          &lt;!&ndash; Stats / Evidence Metrics &ndash;&gt;-->
+<!--          <div class="stats-grid">-->
+<!--            <div class="stat-card">-->
+<!--              <div class="stat-value">+7.8 points</div>-->
+<!--              <div class="stat-title">KCCQ clinical summary score</div>-->
+<!--              <div class="stat-sub">Between-group difference · STEP-HFpEF</div>-->
+<!--            </div>-->
+<!--            <div class="stat-card">-->
+<!--              <div class="stat-value">-10.7 pp</div>-->
+<!--              <div class="stat-title">Body-weight change</div>-->
+<!--              <div class="stat-sub">Between-group difference · STEP-HFpEF</div>-->
+<!--            </div>-->
+<!--            <div class="stat-card">-->
+<!--              <div class="stat-value">529 adults</div>-->
+<!--              <div class="stat-title">Randomized, double-blind trial</div>-->
+<!--              <div class="stat-sub">LVEF ≥45% · BMI ≥30 · 52 weeks</div>-->
+<!--            </div>-->
+<!--          </div>-->
+
+<!--          &lt;!&ndash; Generated Synthesis Box &ndash;&gt;-->
+<!--          <div class="card synthesis-card">-->
+<!--            <div class="card-header-flex">-->
+<!--              <h3>Evidence synthesis</h3>-->
+<!--              <span class="badge-tag">AI Generated</span>-->
+<!--            </div>-->
+<!--            <p id="synthesisText" class="synthesis-text">In obesity-related HFpEF, semaglutide 2.4 mg weekly improved symptoms, physical limitations, and body weight versus placebo at 52 weeks. Benefits were observed in trials both without and with type 2 diabetes.</p>-->
+<!--          </div>-->
+
+<!--          &lt;!&ndash; Relevant Clinical Trials Section &ndash;&gt;-->
+<!--          <div class="trials-section">-->
+<!--            <div class="section-title-flex">-->
+<!--              <h3>Relevant clinical trials <span class="count-badge" id="trialCount">3 matches</span></h3>-->
+<!--            </div>-->
+<!--            <div class="trials-grid" id="trialsGrid">-->
+<!--              &lt;!&ndash; Rendered dynamically &ndash;&gt;-->
+<!--            </div>-->
+<!--          </div>-->
+<!--        </div>-->
+
+<!--        &lt;!&ndash; Right Side Panel &ndash;&gt;-->
+<!--        <aside class="right-panel">-->
+<!--          <div class="card panel-card">-->
+<!--            <div class="panel-header">-->
+<!--              <h3>Sources</h3>-->
+<!--              <span class="count-badge">03</span>-->
+<!--            </div>-->
+<!--            <div class="sources-list" id="sourcesList">-->
+<!--              &lt;!&ndash; Rendered dynamically &ndash;&gt;-->
+<!--            </div>-->
+<!--          </div>-->
+
+<!--          <div class="card panel-card">-->
+<!--            <div class="panel-header">-->
+<!--              <h3>Live Agent Pipeline</h3>-->
+<!--            </div>-->
+<!--            <div class="events-timeline" id="eventsTimeline">-->
+<!--              <div class="event-step active">-->
+<!--                <span class="step-dot"></span>-->
+<!--                <div class="step-content">-->
+<!--                  <strong>Literature Search Agent</strong>-->
+<!--                  <p>Retrieved 3 PubMed articles</p>-->
+<!--                </div>-->
+<!--              </div>-->
+<!--            </div>-->
+<!--          </div>-->
+<!--        </aside>-->
+<!--      </div>-->
+<!--    </main>-->
+<!--  </div>-->
+<!--  <script src="app.js"></script>-->
+<!--</body>-->
+<!--</html>-->
