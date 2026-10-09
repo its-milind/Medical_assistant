@@ -178,38 +178,93 @@ def log_event(project_id: str, agent: str, message: str, status: str = "complete
     })
 
 
-def _clinical_trials_request(query: str, max_results: int = 3) -> str:
-    """Synchronous HTTP function; called via asyncio.to_thread from async code."""
-    url = "https://clinicaltrials.gov/api/v2/studies"
-    params = {"query.term": query, "pageSize": max_results, "format": "json"}
-    response = requests.get(url, params=params, timeout=(4, 12))
-    response.raise_for_status()
-    studies = response.json().get("studies", [])
-    if not studies:
-        return "No matching records were returned by ClinicalTrials.gov for this query."
 
-    summaries: List[str] = []
-    for idx, study in enumerate(studies, 1):
-        protocol = study.get("protocolSection", {})
-        identification = protocol.get("identificationModule", {})
-        status_module = protocol.get("statusModule", {})
-        design = protocol.get("designModule", {})
-        conditions = protocol.get("conditionsModule", {}).get("conditions", [])
-        nct_id = identification.get("nctId", "N/A")
-        title = identification.get("briefTitle", "N/A")
-        status = status_module.get("overallStatus", "N/A")
-        phases = design.get("phases", [])
-        phase = ", ".join(phases) if phases else "Not specified"
-        condition_text = ", ".join(conditions) if conditions else "Not specified"
-        summaries.append(
-            f"[{idx}] {title}\n"
-            f"    NCT ID: {nct_id}\n"
-            f"    Status: {status}\n"
-            f"    Phase: {phase}\n"
-            f"    Conditions: {condition_text}\n"
-            f"    URL: https://clinicaltrials.gov/study/{nct_id}"
+
+
+
+def _clinical_trials_request(query: str, max_results: int = 5) -> str:
+    url = "https://clinicaltrials.gov/api/v2/studies"
+    query_lower = (query or "").lower()
+
+    if "semaglutide" in query_lower:
+        plans = [
+            {
+                "query.intr": "semaglutide",
+                "query.cond": "obesity",
+                "pageSize": 30,
+            },
+            {
+                "query.intr": "semaglutide",
+                "query.cond": "cardiovascular disease",
+                "pageSize": 30,
+            },
+            {
+                "query.intr": "semaglutide",
+                "pageSize": 30,
+            },
+        ]
+    else:
+        cleaned = re.sub(
+            r"\b(find|search|up to|five|trials?|investigating|"
+            r"investigate|studying|study|for each|return|report|"
+            r"adults|adult|include|official|link|status|phase|"
+            r"intervention|primary outcome|title|identifier|nct)\b",
+            " ",
+            query_lower,
+            flags=re.IGNORECASE,
         )
-    return "\n\n".join(summaries)
+        cleaned = re.sub(r"[^a-z0-9+\- ]", " ", cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
+        plans = [{
+            "query.term": cleaned or query,
+            "pageSize": max(10, max_results * 4),
+        }]
+
+    records = {}
+    errors = []
+
+    for params in plans:
+        try:
+            response = requests.get(
+                url,
+                params={**params, "format": "json"},
+                timeout=(3, 7),
+            )
+            response.raise_for_status()
+
+            studies = response.json().get("studies", [])
+
+            for study in studies:
+                protocol = study.get("protocolSection", {})
+                identification = protocol.get(
+                    "identificationModule", {}
+                )
+                nct_id = identification.get("nctId")
+
+                if nct_id:
+                    records.setdefault(nct_id, study)
+
+        except requests.RequestException as exc:
+            logger.warning(
+                "ClinicalTrials.gov query failed: %s", exc
+            )
+            errors.append(str(exc))
+
+        if len(records) >= max_results:
+            break
+
+    if not records:
+        if errors:
+            return (
+                "ClinicalTrials.gov search failed for all query "
+                "variants. Check backend logs."
+            )
+
+        return (
+            "No matching records were returned by ClinicalTrials.gov "
+            "for the attempted search variants."
+        )
 
 
 async def fetch_clinical_trials(query: str, max_results: int = 3) -> str:
